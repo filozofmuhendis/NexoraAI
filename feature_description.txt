@@ -1,0 +1,9 @@
+Nexora AI - Feature Descriptions
+=================================
+
+target: Variant pathogenicity (1: Pathogenic, 0: Benign)
+gnomAD_AF: Allele Frequency from gnomAD (Population database)
+grantham_score: Grantham distance between original and mutant AA
+mw_diff: Molecular weight difference (Alt - Ref)
+polarity_diff: Polarity difference (Alt - Ref)
+hydro_diff: Hydrophobicity difference
