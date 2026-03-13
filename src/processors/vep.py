@@ -56,10 +56,10 @@ def run_vep(input_vcf, output_file="data/vep_output.txt"):
     if is_docker:
         # Docker needs volume mapping to access the local project directory
         cwd = os.getcwd()
-        # Ensure data directory exists locally
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        # In Docker, we map the project root to /data. 
+        # The cache is already inside the project (vep_cache/).
+        # We tell VEP to look for the cache in /data/vep_cache
         
-        # Reconstruct docker command with volume mapping
         full_cmd = [
             "docker", "run", "--rm",
             "-v", f"{cwd}:/data",
@@ -68,6 +68,7 @@ def run_vep(input_vcf, output_file="data/vep_output.txt"):
             "-i", f"/data/{input_vcf}",
             "-o", f"/data/{output_file}",
             "--offline", "--assembly", "GRCh37",
+            "--dir_cache", "/data/vep_cache",
             "--format", "vcf", "--force_overwrite", "--no_stats",
             "--sift", "b", "--polyphen", "b", "--symbol", "--canonical", "--tab"
         ]
