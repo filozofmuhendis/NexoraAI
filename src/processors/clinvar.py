@@ -31,20 +31,18 @@ def filter_clinvar_vcf(vcf_path):
         info_col = chunk['INFO'].astype(str)
         
         # 1. Missense Check
-        # ClinVar uses MC (Molecule Consequence) attribute
-        missense_mask = info_col.str.contains('missense_variant', case=False)
+        missense_mask = info_col.str.contains(r'missense_variant', case=False)
         
-        # 2. Clinical Significance
-        # CLNSIG attribute
-        # Pathogenic/Likely Pathogenic
-        is_pathogenic = info_col.str.contains('CLNSIG=Pathogenic|CLNSIG=Likely_pathogenic', case=False)
-        # Benign/Likely Benign
-        is_benign = info_col.str.contains('CLNSIG=Benign|CLNSIG=Likely_benign', case=False)
+        # 2. Clinical Significance (Pathogenic/Likely Pathogenic vs Benign/Likely Benign)
+        is_pathogenic = info_col.str.contains(r'CLNSIG=Pathogenic|CLNSIG=Likely_pathogenic', case=False)
+        is_benign = info_col.str.contains(r'CLNSIG=Benign|CLNSIG=Likely_benign', case=False)
+        is_clean = (is_pathogenic ^ is_benign) & (~info_col.str.contains(r'Conflicting_interpretations_of_pathogenicity', case=False))
         
-        # Exclude conflicting or uncertain
-        is_clean = (is_pathogenic ^ is_benign) & (~info_col.str.contains('Conflicting_interpretations_of_pathogenicity', case=False))
-        
-        valid_mask = missense_mask & is_clean
+        # 3. Yalnızca Güvenilir Etiketler (CLNREVSTAT Filter)
+        # PSR gerekliliklerine göre "no_assertion", "no_criteria" gibi düşük kaliteli değerlendirmeler çıkarılıyor.
+        is_reliable = ~info_col.str.contains(r'CLNREVSTAT=no_assertion|CLNREVSTAT=no_criteria_provided', case=False)
+
+        valid_mask = missense_mask & is_clean & is_reliable
         
         chunk = chunk[valid_mask].copy()
         
@@ -52,8 +50,8 @@ def filter_clinvar_vcf(vcf_path):
             # Assign labels
             chunk['target'] = np.where(info_col[chunk.index].str.contains('Pathogenic', case=False), 1, 0)
             
-            # Variant key for downstream merging
-            chunk['variant_key'] = (chunk['#CHROM'].astype(str) + ":" + 
+            # Variant key for downstream merging (Normalized chrom)
+            chunk['variant_key'] = (chunk['#CHROM'].astype(str).str.replace('chr', '', case=False) + ":" + 
                                    chunk['POS'].astype(str) + ":" + 
                                    chunk['REF'] + ":" + 
                                    chunk['ALT'])
@@ -68,6 +66,12 @@ def filter_clinvar_vcf(vcf_path):
         print("[!] Filtrelere uygun varyant bulunamadı.")
         return pd.DataFrame()
         
-    df = pd.concat(filtered_dfs).reset_index(drop=True)
-    print(f"[+] {len(df)} varyant ClinVar'dan başarıyla filtrelendi.")
+    df = pd.concat(filtered_dfs, ignore_index=True)
+    
+    # Veri setinde tekrar eden kayıtların temizlenmesi (PSR Kriteri)
+    initial_len = len(df)
+    df.drop_duplicates(subset=['#CHROM', 'POS', 'REF', 'ALT'], keep='first', inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    
+    print(f"[+] Toplam {len(df)} varyant (Tekrarlayan {initial_len - len(df)} kayıt temizlendi) oluşturuldu.")
     return df

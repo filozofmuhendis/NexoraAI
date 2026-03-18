@@ -51,8 +51,12 @@ def main():
     # VEP çıktılarını oku ve birleştir
     vep_df = parse_vep_output(vep_file)
     if not vep_df.empty:
-        print("[*] VEP verileri (SIFT, PolyPhen, Gene, Consequence) birleştiriliyor...")
+        print(f"[*] VEP verileri ({len(vep_df)} kayıt) birleştiriliyor...")
         df = df.merge(vep_df, on='variant_key', how='left')
+        
+        # Merge başarısı kontrolü
+        valid_sift = df['SIFT_score'].notna().sum()
+        print(f"[*] Birleştirme sonrası SIFT_score olan varyant sayısı: {valid_sift} / {len(df)}")
     else:
         print("[!] Uyarı: VEP anotasyon verileri sağlanamadı. Skorlar eksik kalacak.")
 

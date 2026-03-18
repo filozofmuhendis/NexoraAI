@@ -133,13 +133,19 @@ def parse_vep_output(vep_path):
 
         def get_score(val):
             if pd.isna(val) or val == '-': return np.nan
+            # Resilient regex for scores like tolerated(0.07) or deleterious_low_confidence(0.01)
             m = re.search(r'\(([\d.]+)\)', str(val))
             return float(m.group(1)) if m else np.nan
 
-        if 'SIFT' in df_vep.columns:
-            df_vep['SIFT_score'] = df_vep['SIFT'].apply(get_score)
-        if 'PolyPhen' in df_vep.columns:
-            df_vep['PolyPhen_score'] = df_vep['PolyPhen'].apply(get_score)
+        # VEP outputs might use variant names like SIFT, PolyPhen etc. 
+        # But sometimes they are appended with other strings if not tab-split correctly.
+        sift_col = [c for c in df_vep.columns if 'SIFT' in c]
+        if sift_col:
+            df_vep['SIFT_score'] = df_vep[sift_col[0]].apply(get_score)
+            
+        pp_col = [c for c in df_vep.columns if 'PolyPhen' in c]
+        if pp_col:
+            df_vep['PolyPhen_score'] = df_vep[pp_col[0]].apply(get_score)
 
         if 'Amino_acids' in df_vep.columns:
             df_vep[['AA_REF', 'AA_ALT']] = df_vep['Amino_acids'].str.split('/', expand=True).iloc[:, :2]
@@ -151,10 +157,19 @@ def parse_vep_output(vep_path):
             'Protein_position': 'protein_position'
         }
         df_vep = df_vep.rename(columns=rename_map)
-        df_vep['variant_key'] = df_vep['variant_key_vep'].str.replace('_', ':')
+        # Ensure variant_key_vep is string to avoid .str accessor errors
+        df_vep['variant_key'] = df_vep['variant_key_vep'].astype(str).str.replace('_', ':').str.replace('chr', '', case=False)
         
         cols = ['variant_key', 'SIFT_score', 'PolyPhen_score', 'AA_REF', 'AA_ALT', 
                 'protein_position', 'variant_consequence', 'gene_symbol']
+                
+        # Optional Evolutionary Conservation scores (if VEP plugins added them)
+        evo_cols = ['PhyloP', 'GERP', 'PhastCons']
+        for ec in evo_cols:
+            if ec in df_vep.columns:
+                df_vep[f'{ec}_score'] = pd.to_numeric(df_vep[ec], errors='coerce')
+                cols.append(f'{ec}_score')
+                
         return df_vep[[c for c in cols if c in df_vep.columns]].drop_duplicates('variant_key')
 
     except Exception as e:
@@ -165,12 +180,16 @@ def generate_vep_input(df, output_path="data/vep_input.vcf"):
     """Saves variants for VEP processing."""
     if df.empty: return None
     print(f"[*] VEP giriş dosyası hazırlanıyor: {output_path}")
+    # VEP needs an identifying ID. We use our normalized variant_key.
+    vcf_df = df.copy()
+    vcf_df['ID'] = vcf_df['variant_key']
+    
     vcf_cols = ['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO']
     for col in vcf_cols:
-        if col not in df.columns:
-            df[col] = '.' if col != 'FILTER' else 'PASS'
+        if col not in vcf_df.columns:
+            vcf_df[col] = '.' if col != 'FILTER' else 'PASS'
     
     # Ensure data directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    df[vcf_cols].to_csv(output_path, sep='\t', index=False)
+    vcf_df[vcf_cols].to_csv(output_path, sep='\t', index=False)
     return output_path

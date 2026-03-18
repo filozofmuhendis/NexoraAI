@@ -4,3 +4,7 @@ scikit-learn
 xgboost
 scipy
 argparse
+lightgbm
+shap
+matplotlib
+seaborn

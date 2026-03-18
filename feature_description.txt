@@ -1,9 +1,34 @@
-Nexora AI - Feature Descriptions
-=================================
+NEXORA AI - MISSENSE VARYANT SINIFLANDIRMA VERİ SETİ (PSR UYUMLU)
+=================================================================
 
-target: Variant pathogenicity (1: Pathogenic, 0: Benign)
-gnomAD_AF: Allele Frequency from gnomAD (Population database)
-grantham_score: Grantham distance between original and mutant AA
-mw_diff: Molecular weight difference (Alt - Ref)
-polarity_diff: Polarity difference (Alt - Ref)
-hydro_diff: Hydrophobicity difference
+Modellerin yüksek başarımla eğitilebilmesi amacıyla, doğrudan veri sızıntısına (data leakage) yol açabilecek
+genomik koordinat, referans ve alternatif nükleotid dizilimleri gibi özellikler (chr, pos, ref, alt) veri
+setinden tamamen arındırılmıştır (Feature Abstraction).
+
+Bunun yerine PSR beklentilerine uygun olarak özellikler 4 ana gruba ayrılmış ve kolon adları sınırlandırılmıştır:
+
+[ F1 ] GRUP 1: Popülasyon Özellikleri
+- F1_Pop_gnomAD_AF: Varyantın gnomAD popülasyonlarındaki genel alel frekansı.
+
+[ F2 ] GRUP 2: In-Silico Risk Skorları
+- F2_InSilico_SIFT: Varyantın protein fonksiyonuna potansiyel zararlı etkisini tahmin eden skor.
+- F2_InSilico_PolyPhen: Fonksiyon hasar olasılığı yapısal skoru.
+
+[ F3 ] GRUP 3: Biyokimyasal Etkiler
+- F3_Biochem_Grantham: Amino asit değişiminin biyokimyasal uzaklığı.
+- F3_Biochem_MW_Diff: Moleküler ağırlık farkı (Moleküler kütle değişimi).
+- F3_Biochem_Polarity_Diff: Polarite (kutupluluk) farkı.
+- F3_Biochem_Hydro_Diff: Hidrofobiklik (sudan kaçınma) skor farkı.
+
+[ F4 ] GRUP 4: Yapısal ve Bağlamsal Özellikler
+- F4_Struct_Position: Protein dizisindeki asit pozisyonu.
+- F4_Struct_ConsequenceEncoded: Etki tipinin kodlanmış kategorik karşılığı.
+- F4_Struct_GeneEncoded: Gen sembolünün kodlanmış kategorik karşılığı.
+
+[ F5 ] GRUP 5: Evrimsel Korunmuşluk Skorları (Mevcutsa)
+- F5_Evo_PhyloP: PhyloP evrimsel korunmuşluk skoru.
+- F5_Evo_GERP: GERP evrimsel korunmuşluk skoru.
+- F5_Evo_PhastCons: PhastCons evrimsel korunmuşluk skoru.
+
+* Eksik veriler medyan imputasyon yöntemiyle doldurulmuştur.
+* Tekrarlayan çapraz veriler (duplicates) elimine edilmiştir.
